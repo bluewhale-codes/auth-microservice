@@ -5,6 +5,7 @@
  */
 const {
   VALIDATION_MESSAGES,
+  ERROR_MESSAGES,
   PASSWORD_PATTERNS,
   EMAIL_REGEX,
 } = require('../utils/constants');
@@ -239,11 +240,46 @@ const sanitizeVerifyEmailInput = (data) => {
   return { email, otp };
 };
 
+// NEW: Validate resend OTP request
+const validateResendOTP = (data) => {
+  const errors = [];
+  const { email } = data;
+
+  // Email validation (only email needed for resend)
+  if (!email || typeof email !== 'string') {
+    errors.push('Email is required');
+  } else {
+    const normalizedEmail = email.toLowerCase().trim();
+    if (!EMAIL_REGEX.test(normalizedEmail)) {
+      errors.push(ERROR_MESSAGES.INVALID_EMAIL);
+    }
+    if (normalizedEmail.length > 255) {
+      errors.push('Email must not exceed 255 characters');
+    }
+  }
+
+  return {
+    isValid: errors.length === 0,
+    errors,
+    sanitizedData: {
+      email: email?.toLowerCase().trim()
+    }
+  };
+};
+
+const sanitizeResendOTP = (data) => {
+  const email = data.email !== undefined && data.email !== null ? String(data.email).trim().toLowerCase() : data.email;
+
+  return { email };
+};
+
 
 
 module.exports = {
   validateRegistration,
   validateLogin,
   sanitizeRegistrationInput,
-  validateVerifyEmail,sanitizeVerifyEmailInput
+  validateVerifyEmail,sanitizeVerifyEmailInput,
+  validateResendOTP,
+  sanitizeResendOTP
 };

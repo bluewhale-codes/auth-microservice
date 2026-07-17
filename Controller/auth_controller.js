@@ -7,7 +7,7 @@ const {pool} = require("../config/db");
 
 
 const authService = require('../services/auth.service');
-const { validateRegistration, validateLogin, sanitizeRegistrationInput ,validateVerifyEmail,sanitizeVerifyEmailInput} = require('../validators/auth.validator');
+const { validateRegistration, sanitizeResendOTP ,validateResendOTP , validateLogin, sanitizeRegistrationInput ,validateVerifyEmail,sanitizeVerifyEmailInput} = require('../validators/auth.validator');
 
 const { HTTP_STATUS } = require('../utils/constants');
 const { generateOTP } = require('../utils/otp');
@@ -57,62 +57,24 @@ exports.verifyEmail = catchAsyncError(async (req, res, next) => {
   res.status(HTTP_STATUS.OK).json(result);
 });
 
-
-exports.sendEmail = catchAsyncError(async (req, res, next) => {
+// NEW: Resend OTP (with 30-second cooldown)
+exports.resendOTP = catchAsyncError(async (req, res, next) => {
+  // Validation is handled by middleware
   const { email } = req.body;
 
-  if (!email) {
-    return res.status(400).json({
+  const validationErrors = await validateResendOTP(req.body);
+  if (validationErrors.length > 0) {
+    return res.status(HTTP_STATUS.BAD_REQUEST).json({
       success: false,
-      message: "Email is required",
+      message: validationErrors[0],
     });
   }
+  const sanitizedData = sanitizeResendOTP(req.body);
 
-  const otp = generateOTP();
+  const result = await authService.resendOTP(sanitizedData.email);
 
-  await sendOTPEmail(email, otp);
-
-  res.status(200).json({
-    success: true,
-    message: "Email sent successfully",
-    otp, // remove this in production
-  });
+  res.status(HTTP_STATUS.OK).json(result);
 });
-
-
-
-
-
-// User registration
-exports.register =  catchAsyncError(async(req,res,next)=>{
-    const {name,email,password,role} = req.body;
-
-    if (!name || !email || !password) {
-     return next( new ErrorHandler( "Name, email and password are required", 400 ) ); 
-    }
-
-    const salt = await bcrypt.genSalt(10);
-    const secPass = await bcrypt.hash(req.body.password,salt);
-
-    // Check Existing User 
-    const existingUser = await pool.query( ` SELECT id FROM users WHERE email = $1 `, [email] );
-
-    
-    
-      
-   if (existingUser.rows.length > 0) { return next( new ErrorHandler( "User already exists with this email", 400 ) ); }
-   
-   // Create User 
-   const result = await pool.query( ` INSERT INTO users ( name, email, password_hash, role ) VALUES ($1, $2, $3, $4) RETURNING id, name, email, role, created_at `, [ name, email, secPass, role || "user", ] );
-   const user = result.rows[0];
-
-   const data = {
-       userInfo:user
-    }
-
-    sendToken(data,JWT_SECRET,200,res);
-
-})
 
 
 exports.loginUser  = catchAsyncError(async (req, res, next) => {

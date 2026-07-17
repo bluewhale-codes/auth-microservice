@@ -43,4 +43,11 @@ module.exports = {
   // Allowed roles for registration (whitelist)
   ALLOWED_ROLES: ['student', 'admin', 'faculty','worker'],
   DEFAULT_ROLE: 'student',
+
+
+   // OTP Settings
+  OTP_EXPIRY_MINUTES: parseInt(process.env.OTP_EXPIRY_MINUTES, 10) || 10,
+  OTP_RESEND_COOLDOWN_SECONDS: parseInt(process.env.OTP_RESEND_COOLDOWN_SECONDS, 10) || 30,  // ← NEW
+  MAX_OTP_ATTEMPTS: parseInt(process.env.MAX_OTP_ATTEMPTS, 10) || 5,
+  MAX_OTP_RESENDS_PER_HOUR: parseInt(process.env.MAX_OTP_RESENDS_PER_HOUR, 10) || 5,  // ← NEW
 };

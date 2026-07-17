@@ -99,7 +99,7 @@ const registerStudent = async (userData) => {
      
 
     // 4. Generate and hash OTP
-    const otp = generateSecureOTP();
+   const otp = generateSecureOTP();
    const otpHash = await hashOTP(otp);
     
     const expiresAt = getOTPExpiry();
@@ -140,6 +140,119 @@ const registerStudent = async (userData) => {
         },
         token,
         expires_in: "10 minutes"
+      }
+    };
+  });
+};
+
+
+// NEW: Check OTP resend cooldown (30 seconds)
+const checkResendCooldown = async (userId, client = null) => {
+  const latestOTPCreatedAt = await otpRepository.getLatestOTPCreatedAt(userId, client);
+  
+  if (!latestOTPCreatedAt) {
+    return { canResend: true, remainingSeconds: 0 };
+  }
+  
+  const now = new Date();
+  const lastSent = new Date(latestOTPCreatedAt);
+  const elapsedMs = now - lastSent;
+  const cooldownMs = env.OTP_RESEND_COOLDOWN_SECONDS * 1000;
+  
+  if (elapsedMs < cooldownMs) {
+    const remainingSeconds = Math.ceil((cooldownMs - elapsedMs) / 1000);
+    return { canResend: false, remainingSeconds };
+  }
+  
+  return { canResend: true, remainingSeconds: 0 };
+};
+
+// NEW: Check hourly resend limit
+const checkHourlyResendLimit = async (userId, client = null) => {
+  const resendCount = await otpRepository.countResendsInLastHour(userId, client);
+  return resendCount >= env.MAX_OTP_RESENDS_PER_HOUR;
+};
+
+// Resend OTP 
+const resendOTP = async (email) => {
+  return await transaction(async (client) => {
+    // 1. Find user by email
+    const user = await userRepository.findUserByEmail(email, client);
+    if (!user) {
+      throw new ErrorHandler(ERROR_MESSAGES.USER_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
+    }
+
+    // 2. Validate role is student
+    if (user.role !== 'student') {
+      throw new ErrorHandler(ERROR_MESSAGES.INVALID_ROLE, HTTP_STATUS.FORBIDDEN);
+    }
+
+    // 3. Check if email is already verified
+    if (user.is_email_verified) {
+      throw new ErrorHandler(ERROR_MESSAGES.EMAIL_ALREADY_VERIFIED, HTTP_STATUS.BAD_REQUEST);
+    }
+
+    // 4. Check 30-second cooldown
+    const cooldownCheck = await checkResendCooldown(user.id, client);
+    console.log("Time Remaining" + cooldownCheck.remainingSeconds);
+    if (!cooldownCheck.canResend) {
+      const errorMessage = `Please wait ${cooldownCheck.remainingSeconds} seconds before requesting a new OTP`;
+      throw new ErrorHandler(
+        errorMessage,
+        HTTP_STATUS.TOO_MANY_REQUESTS
+      );
+    }
+    console.log("Time Remaining" + typeof(cooldownCheck.remainingSeconds));
+
+    // 5. Check hourly resend limit (max 5 per hour)
+    const hourlyLimitReached = await checkHourlyResendLimit(user.id, client);
+    if (hourlyLimitReached) {
+      throw new ErrorHandler(ERROR_MESSAGES.OTP_MAX_RESENDS, HTTP_STATUS.TOO_MANY_REQUESTS);
+    }
+
+    // 6. Generate new OTP
+    const otp = generateSecureOTP();
+    const otpHash = await hashOTP(otp);
+    const expiresAt = getOTPExpiry();
+
+    // 7. Store new OTP in database
+    await otpRepository.createOTP(
+      { userId: user.id, otpHash, expiresAt },
+      client
+    );
+
+    // Return OTP for email sending (outside transaction)
+    return { user, otp };
+  }).then(async (result) => {
+    // Send email after successful transaction
+    try {
+      await emailService.sendVerificationEmail(email, result.user.name, result.otp);
+    } catch (emailError) {
+      console.error('Failed to send resend OTP email:', emailError.message);
+      throw new ErrorHandler(ERROR_MESSAGES.EMAIL_SEND_FAILED, HTTP_STATUS.SERVICE_UNAVAILABLE);
+    }
+
+    // Generate Access token
+    const token = generateAccessToken({
+    id: result.user.id,
+    email: result.user.email,
+    role: result.user.role,
+    });
+
+    return {
+      success: true,
+      message: SUCCESS_MESSAGES.OTP_RESENT,
+      data: {
+        user: {
+          id: result.user.id,
+          name: result.user.name,
+          email: result.user.email,
+          role: result.user.role,
+          is_email_verified: result.user.is_email_verified
+        },
+        token,
+        expires_in: env.JWT_EXPIRES_IN,
+        cooldown_seconds: env.OTP_RESEND_COOLDOWN_SECONDS  // ← Tell mobile app the cooldown
       }
     };
   });
@@ -281,5 +394,35 @@ module.exports = {
   registerUser,
   registerStudent,
   loginUser,
-  verifyEmail
+  verifyEmail,
+   resendOTP,
 };
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

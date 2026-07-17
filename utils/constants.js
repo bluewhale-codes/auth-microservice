@@ -18,7 +18,7 @@ module.exports = {
   
   SERVICE_UNAVAILABLE: 503
   },
-
+  
   // Validation Messages
   VALIDATION_MESSAGES: {
     NAME_REQUIRED: 'Name is required',
@@ -40,7 +40,8 @@ module.exports = {
   SUCCESS_MESSAGES : {
   USER_REGISTERED: 'Registration successful. Please check your email for OTP verification',
   EMAIL_VERIFIED: 'Email verified successfully',
-  PROFILE_COMPLETED: 'Student profile completed successfully'
+  PROFILE_COMPLETED: 'Student profile completed successfully',
+  OTP_RESENT: 'OTP has been resent to your email',  // ← NEW
   },
 
   // Generic Error Messages (OWASP compliant - never expose internal details)
@@ -52,6 +53,11 @@ module.exports = {
   },
 
   ERROR_MESSAGES : {
+    // NEW: Resend OTP errors
+  OTP_RESEND_COOLDOWN: 'Please wait {seconds} seconds before requesting a new OTP',
+  OTP_MAX_RESENDS: 'Maximum OTP resend limit reached for this hour. Please try again later',
+
+
     GENERIC_ERROR: 'Something went wrong. Please try again later.',
     REGISTRATION_FAILED: 'Registration failed. Please try again.',
     LOGIN_FAILED: 'Invalid credentials',

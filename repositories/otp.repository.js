@@ -31,4 +31,65 @@ const markOTPAsUsed = async (otpId, client = null) => {
   return result.rows[0] || null;
 };
 
-module.exports = { createOTP, findLatestOTPByUserId, markOTPAsUsed };
+
+// NEW: Count OTPs sent in a time window (for resend cooldown & rate limiting)
+const countRecentOTPs = async (userId, since, client = null) => {
+  const sql = `
+    SELECT COUNT(*) as count
+    FROM email_otps 
+    WHERE user_id = $1 AND created_at > $2
+  `;
+  
+  if (client) {
+    const result = await client.query(sql, [userId, since]);
+    return parseInt(result.rows[0].count, 10);
+  }
+  
+  const result = await query(sql, [userId, since]);
+  return parseInt(result.rows[0].count, 10);
+};
+
+// NEW: Count OTP resends in the last hour (for hourly rate limiting)
+const countResendsInLastHour = async (userId, client = null) => {
+  const oneHourAgo = new Date();
+  oneHourAgo.setHours(oneHourAgo.getHours() - 1);
+  
+  const sql = `
+    SELECT COUNT(*) as count
+    FROM email_otps 
+    WHERE user_id = $1 AND created_at > $2
+  `;
+  
+  if (client) {
+    const result = await client.query(sql, [userId, oneHourAgo]);
+    return parseInt(result.rows[0].count, 10);
+  }
+  
+  const result = await query(sql, [userId, oneHourAgo]);
+  return parseInt(result.rows[0].count, 10);
+};
+
+// NEW: Get the most recent OTP creation time (for cooldown calculation)
+const getLatestOTPCreatedAt = async (userId, client = null) => {
+  const sql = `
+    SELECT created_at
+    FROM email_otps 
+    WHERE user_id = $1 
+    ORDER BY created_at DESC 
+    LIMIT 1
+  `;
+  
+  if (client) {
+    const result = await client.query(sql, [userId]);
+    return result.rows[0]?.created_at || null;
+  }
+  
+  const result = await query(sql, [userId]);
+  return result.rows[0]?.created_at || null;
+};
+
+module.exports = { createOTP, findLatestOTPByUserId, markOTPAsUsed ,
+      countRecentOTPs,
+      countResendsInLastHour,
+      getLatestOTPCreatedAt, 
+};
