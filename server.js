@@ -1,8 +1,8 @@
 const app = require("./index");
-const DBconnection = require('./db');
+const {connectToDB} = require('./config/db');
 const port = process.env.PORT;
 
-DBconnection();
+connectToDB();
 app.listen(port,()=>{
     console.log(`app is listening on port ${port}`);
 })
