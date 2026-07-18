@@ -145,3 +145,33 @@ exports.login = catchAsyncError(async(req,res,next)=>{
 
           sendToken(data,JWT_SECRET,200,res);
 })
+
+
+
+// Worker Controllers
+exports.sendWorkerOTP = catchAsyncError(async (req, res, next) => {
+  const { worker_id } = req.sanitizedData;
+  const result = await authService.sendWorkerOTP(worker_id);
+  res.status(HTTP_STATUS.OK).json(result);
+});
+
+exports.verifyWorkerOTP = catchAsyncError(async (req, res, next) => {
+  const { worker_id, otp } = req.sanitizedData;
+  const result = await authService.verifyWorkerOTP(worker_id, otp);
+  res.status(HTTP_STATUS.OK).json(result);
+});
+
+exports.completeWorkerRegistration = catchAsyncError(async (req, res, next) => {
+  const { worker_id, password, verification_token } = req.sanitizedData;
+  
+  if (!req.file) {
+    const ErrorHandler = require('../utils/errorHandler');
+    throw new ErrorHandler('ID card image is required', HTTP_STATUS.BAD_REQUEST);
+  }
+  console.log("this is buffer",req.file.buffer);
+  const result = await authService.completeWorkerRegistration(
+    worker_id, password, verification_token, req.file.buffer
+  );
+
+  res.status(HTTP_STATUS.CREATED).json(result);
+});

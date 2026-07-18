@@ -38,10 +38,13 @@ module.exports = {
   OTP_EXACTLY_6_DIGITS: 'OTP must be exactly 6 digits',
   },
   SUCCESS_MESSAGES : {
+    OTP_SENT: 'OTP has been sent to your registered email',
+    OTP_VERIFIED: 'OTP verified successfully',
   USER_REGISTERED: 'Registration successful. Please check your email for OTP verification',
   EMAIL_VERIFIED: 'Email verified successfully',
   PROFILE_COMPLETED: 'Student profile completed successfully',
   OTP_RESENT: 'OTP has been resent to your email',  // ← NEW
+  REGISTRATION_COMPLETE: 'Registration completed successfully. Awaiting admin verification',
   },
 
   // Generic Error Messages (OWASP compliant - never expose internal details)
@@ -49,15 +52,28 @@ module.exports = {
     GENERIC_ERROR: 'Something went wrong. Please try again later.',
     REGISTRATION_FAILED: 'Registration failed. Please try again.',
     LOGIN_FAILED: 'Invalid credentials',
+    
    
+  },
+  WORKER_STATUS : {
+  UNDER_VERIFICATION: 'under_verification',
+  VERIFIED: 'verified',
+  REJECTED: 'rejected',
+  SUSPENDED: 'suspended'
   },
 
   ERROR_MESSAGES : {
     // NEW: Resend OTP errors
+    INVALID_VERIFICATION_TOKEN: 'Invalid or expired verification token',
+  INVALID_FILE: 'ID card image is required',
+  UPLOAD_FAILED: 'Failed to upload ID card image. Please try again',
   OTP_RESEND_COOLDOWN: 'Please wait {seconds} seconds before requesting a new OTP',
   OTP_MAX_RESENDS: 'Maximum OTP resend limit reached for this hour. Please try again later',
-
-
+    INVALID_WORKER_ID: 'Worker ID is required and must be a valid format',
+     WORKER_NOT_FOUND: 'Worker not found in master records',
+  WORKER_INACTIVE: 'Worker is inactive. Please contact admin',
+  WORKER_NO_EMAIL: 'No email on file for this worker. Please contact admin',
+  WORKER_ALREADY_REGISTERED: 'This worker is already registered',
     GENERIC_ERROR: 'Something went wrong. Please try again later.',
     REGISTRATION_FAILED: 'Registration failed. Please try again.',
     LOGIN_FAILED: 'Invalid credentials',
@@ -93,6 +109,14 @@ module.exports = {
   NUMBER: /\d/,
   SPECIAL_CHAR: /[!@#$%^&*(),.?":{}|<>]/,
   MIN_LENGTH: 8,
+},
+
+  REGEX : {
+  EMAIL: /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/,
+  PASSWORD: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/,
+  OTP: /^\d{6}$/,
+  WORKER_ID: /^[A-Z]{2,4}\d{3,6}$/i,
+  UUID: /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 },
 
   // Email Validation Regex (RFC 5322 compliant simplified)

@@ -21,14 +21,38 @@ const findUserById = async (id, client = null) => {
 
 const createUser = async (userData, client = null) => {
   const { name, email, passwordHash, role } = userData;
+  const isEmailVerified = role === 'worker';
+  const values = [
+    name,
+    email,
+    passwordHash,
+    role,
+    isEmailVerified
+  ];
+
   const sql = `
-    INSERT INTO users (name, email, password_hash, role, is_email_verified, created_at, updated_at)
-    VALUES ($1, $2, $3, $4, false, NOW(), NOW())
-    RETURNING id, name, email, role, is_email_verified, created_at, updated_at
+    INSERT INTO users (
+      name,
+      email,
+      password_hash,
+      role,
+      is_email_verified,
+      created_at,
+      updated_at
+    )
+    VALUES ($1, $2, $3, $4, $5, NOW(), NOW())
+    RETURNING
+      id,
+      name,
+      email,
+      role,
+      is_email_verified,
+      created_at,
+      updated_at
   `;
   const result = client 
-    ? await client.query(sql, [name, email, passwordHash, role])
-    : await query(sql, [name, email, passwordHash, role]);
+    ? await client.query(sql,values)
+    : await query(sql, values);
   return result.rows[0];
 };
 
