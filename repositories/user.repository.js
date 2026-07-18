@@ -72,7 +72,17 @@ const checkEmailExists = async (email, client = null) => {
   return result.rows[0].exists;
 };
 
+// For login - returns user with password_hash
+const findUserByEmailWithPassword = async (email, client = null) => {
+  const sql = `
+    SELECT id, name, email, password_hash, role, is_email_verified, created_at, updated_at
+    FROM users WHERE email = $1 LIMIT 1
+  `;
+  const result = client ? await client.query(sql, [email]) : await query(sql, [email]);
+  return result.rows[0] || null;
+};
+
 module.exports = {
   findUserByEmail, findUserById, createUser, 
-  updateEmailVerified, checkEmailExists
+  updateEmailVerified, checkEmailExists , findUserByEmailWithPassword
 };

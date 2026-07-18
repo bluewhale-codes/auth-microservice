@@ -18,6 +18,10 @@ module.exports = {
   
   SERVICE_UNAVAILABLE: 503
   },
+  JWT_CONFIG:{
+    ISSUER:"Swatchh_PU_Backend",
+    ALGORITHM:"HS256"
+  },
   
   // Validation Messages
   VALIDATION_MESSAGES: {
@@ -45,6 +49,11 @@ module.exports = {
   PROFILE_COMPLETED: 'Student profile completed successfully',
   OTP_RESENT: 'OTP has been resent to your email',  // ← NEW
   REGISTRATION_COMPLETE: 'Registration completed successfully. Awaiting admin verification',
+  STUDENT_PROFILE_CREATED: 'Student profile created successfully',
+    FACULTY_PROFILE_CREATED: 'Faculty profile created successfully',
+      LOGIN_SUCCESS: 'Login successful',
+  PROFILE_COMPLETION_REQUIRED: 'Profile completion required',
+  TOKEN_REFRESHED: 'Access token refreshed successfully'
   },
 
   // Generic Error Messages (OWASP compliant - never expose internal details)
@@ -99,7 +108,31 @@ module.exports = {
   TOKEN_MISSING: 'Authentication token is missing',
   INTERNAL_ERROR: 'Something went wrong. Please try again later',
   EMAIL_SEND_FAILED: 'Failed to send email. Please try again later',
-  DB_ERROR: 'Database operation failed'
+  DB_ERROR: 'Database operation failed',
+
+
+  // student Registration
+  STUDENT_PROFILE_ALREADY_EXISTS: 'Student profile already exists for this user',
+  ROLL_NUMBER_ALREADY_EXISTS: 'This roll number is already registered',
+  PHONE_NUMBER_ALREADY_EXISTS: 'This phone number is already registered',
+
+    // Faculty Profile
+  FACULTY_PROFILE_ALREADY_EXISTS: 'Faculty profile already exists for this user',
+  FACULTY_ID_ALREADY_EXISTS: 'This faculty ID is already registered',
+  ONLY_FACULTY_CAN_ACCESS: 'Only faculty can access this resource',
+  INVALID_FACULTY_TYPE: 'Faculty type must be either "teaching" or "non_teaching"',
+
+  // Login
+  INVALID_CREDENTIALS: 'Invalid email or password',
+  REGISTRATION_TOKEN_INVALID: 'Invalid or expired registration token',
+  REGISTRATION_TOKEN_MISSING: 'Registration token is required',
+  REGISTRATION_TOKEN_WRONG_PURPOSE: 'Invalid token purpose',
+
+  // Refresh Token
+  REFRESH_TOKEN_INVALID: 'Invalid or expired refresh token',
+  REFRESH_TOKEN_MISSING: 'Refresh token is required',
+  REFRESH_TOKEN_WRONG_TYPE: 'Invalid token type',
+
 },
 
   // Password Validation Regex Patterns

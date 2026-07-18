@@ -10,14 +10,17 @@ const otpRepository = require('../repositories/otp.repository');
 const otpRepositoryworker = require('../repositories/workerOtp.repository');
 const workerMasterRepository = require('../repositories/workerMaster.repository');
 const workerProfileRepository = require('../repositories/workerProfile.repository');
+const studentProfileRepository = require('../repositories/studentProfile.repository');
+const facultyProfileRepository = require('../repositories/facultyProfile.repository');
 const worker = require('../repositories/workerMaster.repository');
 const {transaction} = require("../config/db")
-const { generateAccessToken } = require('../utils/jwt'); // need
+const { generateAccessToken , generateRegistrationToken , generateRefreshToken , verifyRefreshToken} = require('../utils/jwt'); // need
 const { hashOTP , compareOTP, hashPassword } = require('../utils/password'); // need
 const ErrorHandler = require('../utils/ErrorHandler'); // need
 const { HTTP_STATUS, VALIDATION_MESSAGES, ERROR_MESSAGES , SUCCESS_MESSAGES , WORKER_STATUS } = require('../utils/constants');
 const emailService = require('./email.service');
 const cloudinaryService = require('./cloudinary.service');
+const { comparePassword } = require('../utils/password');
 
 
 /**
@@ -273,10 +276,10 @@ const verifyEmail = async (email, otp) => {
       throw new ErrorHandler(ERROR_MESSAGES.USER_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
     }
 
-    // 2. Validate role
-    if (user.role !== 'student') {
-      throw new ErrorHandler(ERROR_MESSAGES.INVALID_ROLE, HTTP_STATUS.FORBIDDEN);
-    }
+    // // 2. Validate role
+    // if (user.role !== 'student') {
+    //   throw new ErrorHandler(ERROR_MESSAGES.INVALID_ROLE, HTTP_STATUS.FORBIDDEN);
+    // }
 
     // 3. Check already verified
     if (user.is_email_verified) {
@@ -370,7 +373,7 @@ const loginUser = async (credentials) => {
   }
 
   // Verify password
-  const { comparePassword } = require('../utils/password');
+  
   const isPasswordValid = await comparePassword(password, user.password_hash);
 
   if (!isPasswordValid) {
@@ -394,6 +397,111 @@ const loginUser = async (credentials) => {
     token,
   };
 };
+
+
+
+// Check if profile is completed based on role
+const isProfileCompleted = async (userId, role) => {
+  if (role === 'student') {
+    return await studentProfileRepository.checkProfileExists(userId);
+  }
+  if (role === 'faculty') {
+    return await facultyProfileRepository.checkProfileExists(userId);
+  }
+  if (role === 'worker') {
+    // Worker profile check - can be added later
+    return false;
+  }
+  return false;
+};
+
+// Get next step based on role
+const getNextStep = (role) => {
+  const steps = {
+    student: 'complete_student_registration',
+    faculty: 'complete_faculty_registration',
+    worker: 'complete_worker_registration'
+  };
+  return steps[role] || 'complete_registration';
+};
+
+
+// ═══════════════════════════════════════════════════════════════
+// LOGIN SERVICE
+// ═══════════════════════════════════════════════════════════════
+const login = async (email, password) => {
+  // STEP 3: Find user by email (with password hash)
+  const user = await userRepository.findUserByEmailWithPassword(email);
+  if (!user) {
+    throw new ErrorHandler(ERROR_MESSAGES.INVALID_CREDENTIALS, HTTP_STATUS.UNAUTHORIZED);
+  }
+
+  // STEP 4: Verify password
+  const isPasswordValid = await comparePassword(password, user.password_hash);
+  if (!isPasswordValid) {
+    throw new ErrorHandler(ERROR_MESSAGES.INVALID_CREDENTIALS, HTTP_STATUS.UNAUTHORIZED);
+  }
+
+  // STEP 5: Check email is verified
+  if (!user.is_email_verified) {
+    throw new ErrorHandler(
+      'Please verify your email before logging in',
+      HTTP_STATUS.FORBIDDEN
+    );
+  }
+
+  // STEP 6: Check profile completion
+  const profileCompleted = await isProfileCompleted(user.id, user.role);
+
+  // ─── CASE: Profile NOT completed ───
+  if (!profileCompleted) {
+    // Generate registration token (24 hours, limited scope)
+    const registrationToken = generateRegistrationToken({
+      id: user.id,
+      role: user.role
+    });
+
+    return {
+      success: true,
+      profile_completed: false,
+      message: SUCCESS_MESSAGES.PROFILE_COMPLETION_REQUIRED,
+      registration_token: registrationToken,
+      role: user.role,
+      next_step: getNextStep(user.role)
+    };
+  }
+
+  // ─── CASE: Profile completed ───
+  // Generate access token (15 minutes)
+  const accessToken = generateAccessToken({
+    id: user.id,
+    email: user.email,
+    role: user.role,
+    name: user.name
+  });
+
+  // Generate refresh token (30 days)
+  const refreshToken = generateRefreshToken({
+    id: user.id,
+    email: user.email,
+    role: user.role
+  });
+
+  return {
+    success: true,
+    profile_completed: true,
+    message: SUCCESS_MESSAGES.LOGIN_SUCCESS,
+    access_token: accessToken,
+    refresh_token: refreshToken,
+    user: {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role
+    }
+  };
+};
+
 
 
 
@@ -650,6 +758,204 @@ const completeWorkerRegistration = async (workerId, password, verificationToken,
 
 
 
+// Student Registration
+const completeStudentRegistration = async (userId, rollNo, phoneNo) => {
+  return await transaction(async (client) => {
+    // STEP 3: Find user by ID (from JWT token)
+    const user = await userRepository.findUserById(userId, client);
+    if (!user) {
+      throw new ErrorHandler(ERROR_MESSAGES.USER_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
+    }
+
+    // STEP 4: Check email is verified
+    if (!user.is_email_verified) {
+      throw new ErrorHandler(
+        'Please verify your email before completing registration',
+        HTTP_STATUS.BAD_REQUEST
+      );
+    }
+
+    // STEP 5: Verify role is student
+    if (user.role !== 'student') {
+      throw new ErrorHandler(
+        'Only students can access this resource',
+        HTTP_STATUS.FORBIDDEN
+      );
+    }
+
+    // STEP 6: Check profile does not already exist
+    const profileExists = await studentProfileRepository.checkProfileExists(userId, client);
+    if (profileExists) {
+      throw new ErrorHandler(
+        ERROR_MESSAGES.STUDENT_PROFILE_ALREADY_EXISTS,
+        HTTP_STATUS.CONFLICT
+      );
+    }
+
+    // STEP 7: Check roll number uniqueness
+    const rollNoExists = await studentProfileRepository.checkRollNoExists(rollNo, client);
+    if (rollNoExists) {
+      throw new ErrorHandler(
+        ERROR_MESSAGES.ROLL_NUMBER_ALREADY_EXISTS,
+        HTTP_STATUS.CONFLICT
+      );
+    }
+
+    // STEP 8: Check phone number uniqueness
+    const phoneNoExists = await studentProfileRepository.checkPhoneNoExists(phoneNo, client);
+    if (phoneNoExists) {
+      throw new ErrorHandler(
+        ERROR_MESSAGES.PHONE_NUMBER_ALREADY_EXISTS,
+        HTTP_STATUS.CONFLICT
+      );
+    }
+
+    // STEP 9: Create student profile
+    const profile = await studentProfileRepository.createStudentProfile(
+      { userId, rollNo, phoneNo },
+      client
+    );
+
+    // STEP 10: Return success response
+    return {
+      success: true,
+      message: SUCCESS_MESSAGES.STUDENT_PROFILE_CREATED,
+      data: {
+        id: profile.id,
+        user_id: profile.user_id,
+        roll_no: profile.roll_no,
+        phone_no: profile.phone_no,
+        created_at: profile.created_at
+      }
+    };
+  });
+};
+
+// Faculty Registration
+const completeFacultyRegistration = async (userId, facultyId, facultyType, phoneNo) => {
+  return await transaction(async (client) => {
+    // STEP 3: Find user by ID (from JWT token)
+    const user = await userRepository.findUserById(userId, client);
+    if (!user) {
+      throw new ErrorHandler(ERROR_MESSAGES.USER_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
+    }
+
+    // STEP 4: Check email is verified
+    if (!user.is_email_verified) {
+      throw new ErrorHandler(
+        'Please verify your email before completing registration',
+        HTTP_STATUS.BAD_REQUEST
+      );
+    }
+
+    // STEP 5: Verify role is faculty
+    if (user.role !== 'faculty') {
+      throw new ErrorHandler(
+        ERROR_MESSAGES.ONLY_FACULTY_CAN_ACCESS,
+        HTTP_STATUS.FORBIDDEN
+      );
+    }
+
+    // STEP 6: Check faculty profile does not already exist
+    const profileExists = await facultyProfileRepository.checkProfileExists(userId, client);
+    if (profileExists) {
+      throw new ErrorHandler(
+        ERROR_MESSAGES.FACULTY_PROFILE_ALREADY_EXISTS,
+        HTTP_STATUS.CONFLICT
+      );
+    }
+
+    // STEP 7: Check faculty_id uniqueness
+    const facultyIdExists = await facultyProfileRepository.checkFacultyIdExists(facultyId, client);
+    if (facultyIdExists) {
+      throw new ErrorHandler(
+        ERROR_MESSAGES.FACULTY_ID_ALREADY_EXISTS,
+        HTTP_STATUS.CONFLICT
+      );
+    }
+
+    // STEP 8: Check phone number uniqueness
+    const phoneNoExists = await facultyProfileRepository.checkPhoneNoExists(phoneNo, client);
+    if (phoneNoExists) {
+      throw new ErrorHandler(
+        ERROR_MESSAGES.PHONE_NUMBER_ALREADY_EXISTS,
+        HTTP_STATUS.CONFLICT
+      );
+    }
+
+    // STEP 9: Create faculty profile
+    const profile = await facultyProfileRepository.createFacultyProfile(
+      { userId, facultyId, facultyType, phoneNo },
+      client
+    );
+
+    // STEP 10: Return success response
+    return {
+      success: true,
+      message: SUCCESS_MESSAGES.FACULTY_PROFILE_CREATED,
+      data: {
+        id: profile.id,
+        user_id: profile.user_id,
+        faculty_id: profile.faculty_id,
+        faculty_type: profile.faculty_type,
+        phone_no: profile.phone_no,
+        created_at: profile.created_at
+      }
+    };
+  });
+};
+
+const refreshAccessToken = async (refreshToken) => {
+  // STEP 1: Verify the refresh token
+  let decoded;
+  try {
+    decoded = verifyRefreshToken(refreshToken);
+  } catch (error) {
+    if (error.message === 'Invalid token type') {
+      throw new ErrorHandler(ERROR_MESSAGES.REFRESH_TOKEN_WRONG_TYPE, HTTP_STATUS.FORBIDDEN);
+    }
+    throw new ErrorHandler(ERROR_MESSAGES.REFRESH_TOKEN_INVALID, HTTP_STATUS.UNAUTHORIZED);
+  }
+
+  // STEP 2: Find user by ID from token
+  const user = await userRepository.findUserById(decoded.id);
+  if (!user) {
+    throw new ErrorHandler(ERROR_MESSAGES.USER_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
+  }
+
+  // STEP 3: Generate new access token (15 minutes)
+  const newAccessToken = generateAccessToken({
+    id: user.id,
+    email: user.email,
+    role: user.role,
+    name: user.name
+  });
+
+  // STEP 4: Generate new refresh token (30 days) - ROTATION
+  const newRefreshToken = generateRefreshToken({
+    id: user.id,
+    email: user.email,
+    role: user.role
+  });
+
+  // STEP 5: Return new tokens
+  return {
+    success: true,
+    message: SUCCESS_MESSAGES.TOKEN_REFRESHED,
+    access_token: newAccessToken,
+    refresh_token: newRefreshToken,
+    user: {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role
+    }
+  };
+};
+
+
+
+
 module.exports = {
   registerUser,
   registerStudent,
@@ -657,7 +963,11 @@ module.exports = {
   verifyEmail,
    resendOTP,
    sendWorkerOTP, verifyWorkerOTP,
-   completeWorkerRegistration
+   completeWorkerRegistration,
+   completeStudentRegistration,
+   completeFacultyRegistration,
+   login,
+   refreshAccessToken
 };
 
 

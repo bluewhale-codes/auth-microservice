@@ -77,75 +77,16 @@ exports.resendOTP = catchAsyncError(async (req, res, next) => {
 });
 
 
-exports.loginUser  = catchAsyncError(async (req, res, next) => {
-  // 1. Validate input
-  const validationErrors = await validateLogin(req.body);
-  if (validationErrors.length > 0) {
-    return res.status(HTTP_STATUS.BAD_REQUEST).json({
-      success: false,
-      message: validationErrors[0],
-    });
-  }
 
-  // 2. Sanitize
-  const credentials = {
-    email: req.body.email.trim().toLowerCase(),
-    password: req.body.password,
-  };
 
-  // 3. Call service
-  const result = await authService.loginUser(credentials);
+exports.loginUser = catchAsyncError(async (req, res, next) => {
+  const { email, password } = req.sanitizedData;
 
-  // 4. Return response
-  res.status(HTTP_STATUS.OK).json({
-    success: true,
-    message: 'Login successful',
-    data: {
-      user: result.user,
-      token: result.token,
-    },
-  });
+  const result = await authService.login(email, password);
+
+  // Return 200 for both cases (profile completed or not)
+  res.status(HTTP_STATUS.OK).json(result);
 });
-
-
-exports.login = catchAsyncError(async(req,res,next)=>{
-    
-          const {email,password} = req.body;
-
-          // check user given password and email both
-          if(!email || !password){
-               return next(new ErrorHander("Please Enter email or password",400))
-          }
-          // Find User 
-         const result = await pool.query( ` SELECT id, email, password_hash, role, is_active FROM users WHERE email = $1 `, [email] );
-         const user = result.rows[0];
-
-         if(!user){
-          return next(new ErrorHander("Incorrect username or password",400));
-         }
-
-         // Check account status 
-         if (!user.is_active) {
-             return next( new ErrorHandler("Account is disabled", 403) );
-             }
-
-             
-         
-          const ispasswordMatch = await bcrypt.compare( password, user.password_hash );
-          if(!ispasswordMatch){
-            return next(new ErrorHander("Incorrect password or username",400));
-          }
-
-          delete user.password_hash;
-
-
-          const data = {
-            userInfo:user
-          }
-
-          sendToken(data,JWT_SECRET,200,res);
-})
-
 
 
 // Worker Controllers
@@ -174,4 +115,43 @@ exports.completeWorkerRegistration = catchAsyncError(async (req, res, next) => {
   );
 
   res.status(HTTP_STATUS.CREATED).json(result);
+});
+
+
+
+// Register Student
+exports.completeStudentRegistration = catchAsyncError(async (req, res, next) => {
+  // Validation handled by middleware
+  const { roll_no, phone_no } = req.sanitizedData;
+  
+  // user_id from JWT token (set by authenticate middleware)
+  const userId = req.user.id;
+
+  const result = await authService.completeStudentRegistration(userId, roll_no, phone_no);
+
+  res.status(HTTP_STATUS.CREATED).json(result);
+});
+
+// Register Faculty
+exports.completeFacultyRegistration = catchAsyncError(async (req, res, next) => {
+  // Validation handled by middleware
+  const { faculty_id, faculty_type, phone_no } = req.sanitizedData;
+  
+  // user_id from JWT token (set by authenticate middleware)
+  const userId = req.user.id;
+
+  const result = await authService.completeFacultyRegistration(
+    userId, faculty_id, faculty_type, phone_no
+  );
+
+  res.status(HTTP_STATUS.CREATED).json(result);
+});
+
+
+exports.refreshToken = catchAsyncError(async (req, res, next) => {
+  const { refresh_token } = req.sanitizedData;
+
+  const result = await authService.refreshAccessToken(refresh_token);
+
+  res.status(HTTP_STATUS.OK).json(result);
 });
