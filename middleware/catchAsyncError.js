@@ -6,7 +6,7 @@
 
 
 
-const ErrorHandler = require('../utils/errorHandler');
+const ErrorHandler = require('../utils/errorhandler');
 const { HTTP_STATUS, ERROR_MESSAGES } = require('../utils/constants');
 
 const catchAsyncError = (fn) => {
