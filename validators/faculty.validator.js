@@ -1,5 +1,5 @@
 const { HTTP_STATUS } = require('../utils/constants');
-const ErrorHandler = require('../utils/errorHandler');
+const ErrorHandler = require('../utils/errorhandler');
 
 // Indian phone number regex: exactly 10 digits, starts with 6/7/8/9
 const INDIAN_PHONE_REGEX = /^[6-9]\d{9}$/;
