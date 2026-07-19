@@ -94,7 +94,7 @@ const registerStudent = async (userData) => {
     // 1. Check for duplicate email (business rule)
     const existingUser = await userRepository.findUserByEmail(email);
     if (existingUser) {
-        throw new ErrorHandler(VALIDATION_MESSAGES.DUPLICATE_EMAIL, HTTP_STATUS.CONFLICT);
+        throw new ErrorHandler(VALIDATION_MESSAGES.DUPLICATE_EMAIL, HTTP_STATUS.CONFLICT , "EMAIL_ALREADY_EXISTS");
     }
 
     // 2. Hash password before storing
@@ -143,8 +143,8 @@ const registerStudent = async (userData) => {
           id: result.user.id,
           name: result.user.name,
           email: result.user.email,
-          // role: result.user.role,
-          // is_email_verified: result.user.is_email_verified
+          role: result.user.role,
+          is_email_verified: result.user.is_email_verified
         },
         token,
         expires_in: "10 minutes"

@@ -11,7 +11,8 @@ const { validateRegistration, sanitizeResendOTP ,validateResendOTP , validateLog
 
 const { HTTP_STATUS } = require('../utils/constants');
 const { generateOTP } = require('../utils/otp');
-const {sendOTPEmail} = require("../services/email.service")
+const {sendOTPEmail} = require("../services/email.service");
+const errors = require("../middleware/errors");
 
 
 
@@ -20,10 +21,11 @@ exports.registerUser = catchAsyncError(async (req, res, next) => {
 
   // 1. Validate input
   const validationErrors = await validateRegistration(req.body);
-  if (validationErrors.length > 0) {
+  if (validationErrors.errors.length > 0 && validationErrors.errorCode.length > 0) {
     return res.status(HTTP_STATUS.BAD_REQUEST).json({
       success: false,
-      message: validationErrors[0],
+      message: validationErrors.errors[0],
+      errorCode: validationErrors.errorCode[0],
     });
   }
 

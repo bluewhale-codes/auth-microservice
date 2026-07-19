@@ -15,9 +15,9 @@ const { validateResendOTP} = require("../validators/auth.validator")
 
 
 
-router.post('/resend-otp',resendOTP);
 router.post("/createUser",registerUser);
 router.post("/verify-email",verifyEmail);
+router.post('/resend-otp',resendOTP);
 // router.get("/googleAuth",googleRegister);
 // router.get("/googleauthCallback",googleCallback);
 // router.get("/me",isAuthenticatedUser,getUser)

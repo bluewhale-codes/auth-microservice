@@ -18,76 +18,97 @@ const env = require('../config/env');
  */
 const validateRegistration = async (data) => {
   const errors = [];
+  const errorCode=[];
   const { name, email, password, role } = data;
 
   // 1. Name Required
   if (name === undefined || name === null) {
     errors.push(VALIDATION_MESSAGES.NAME_REQUIRED);
-    return errors; // Return early for missing required fields
+    errorCode.push("NAME_REQUIRED");
+    return {
+       errorCode,
+       errors
+    } // Return early for missing required fields
   }
 
   // 2. Email Required
   if (email === undefined || email === null) {
     errors.push(VALIDATION_MESSAGES.EMAIL_REQUIRED);
+     errorCode.push("EMAIL_REQUIRED");
     return errors;
   }
 
   // 3. Password Required
   if (password === undefined || password === null) {
     errors.push(VALIDATION_MESSAGES.PASSWORD_REQUIRED);
+     errorCode.push("PASS_REQUIRED");
     return errors;
   }
 
   // 4. Empty Strings Check (after confirming fields exist)
   if (typeof name === 'string' && name.trim().length === 0) {
     errors.push(`${VALIDATION_MESSAGES.NAME_REQUIRED}. ${VALIDATION_MESSAGES.EMPTY_STRING_NOT_ALLOWED}`);
+    errorCode.push("EMPTY_STRING_NAME");
   }
 
   if (typeof email === 'string' && email.trim().length === 0) {
     errors.push(`${VALIDATION_MESSAGES.EMAIL_REQUIRED}. ${VALIDATION_MESSAGES.EMPTY_STRING_NOT_ALLOWED}`);
+    errorCode.push("EMPTY_STRING_EMAIL");
   }
 
   if (typeof password === 'string' && password.trim().length === 0) {
     errors.push(`${VALIDATION_MESSAGES.PASSWORD_REQUIRED}. ${VALIDATION_MESSAGES.EMPTY_STRING_NOT_ALLOWED}`);
+    errorCode.push("EMPTY_STRING_PASS");
   }
   console.log(EMAIL_REGEX.test("vishalshakya@gmail.com"));
 
   // 5. Invalid Email Format
   if (typeof email === 'string' && email.trim().length > 0 && !EMAIL_REGEX.test(email.trim())) {
     errors.push(VALIDATION_MESSAGES.INVALID_EMAIL);
+    errorCode.push("INVALID_EMAIL");
   }
 
   // 6. Password Length Check
   if (typeof password === 'string' && password.length < PASSWORD_PATTERNS.MIN_LENGTH) {
     errors.push(VALIDATION_MESSAGES.PASSWORD_TOO_SHORT);
+    errorCode.push("EMPTY_STRING");
   }
 
   // 7. Password Missing Uppercase
   if (typeof password === 'string' && !PASSWORD_PATTERNS.UPPERCASE.test(password)) {
     errors.push(VALIDATION_MESSAGES.PASSWORD_MISSING_UPPERCASE);
+    errorCode.push("PASS_MISSING_UPPERCASE");
+
   }
 
   // 8. Password Missing Lowercase
   if (typeof password === 'string' && !PASSWORD_PATTERNS.LOWERCASE.test(password)) {
     errors.push(VALIDATION_MESSAGES.PASSWORD_MISSING_LOWERCASE);
+    errorCode.push("PASS_MISSING_LOWERCASE");
   }
 
   // 9. Password Missing Number
   if (typeof password === 'string' && !PASSWORD_PATTERNS.NUMBER.test(password)) {
     errors.push(VALIDATION_MESSAGES.PASSWORD_MISSING_NUMBER);
+    errorCode.push("PASS_MISSING_NUMBER");
   }
 
   // 10. Password Missing Special Character
   if (typeof password === 'string' && !PASSWORD_PATTERNS.SPECIAL_CHAR.test(password)) {
     errors.push(VALIDATION_MESSAGES.PASSWORD_MISSING_SPECIAL);
+    errorCode.push("PASS_MISSING_SPECIAL");
   }
 
   // 11. Invalid Role (if provided)
   if (role !== undefined && !env.ALLOWED_ROLES.includes(role)) {
     errors.push(VALIDATION_MESSAGES.INVALID_ROLE);
+    errorCode.push("INVALID_ROLE");
   }
 
-  return errors;
+  return {
+    errorCode,
+    errors
+  };
 };
 
 /**
@@ -177,19 +198,29 @@ const isNonEmptyString = (value) => typeof value === 'string' && value.trim().le
  */
 const validateVerifyEmail = async (data) => {
   const errors = [];
+  const errorCode = [];
   const { email, otp } = data;
 
 
   // 1. Email Required
   if (email === undefined || email === null) {
     errors.push(VALIDATION_MESSAGES.EMAIL_REQUIRED);
-    return errors;
+    errorCode.push("EMAIL_REQUIRED");
+
+    return {
+    errors,
+    errorCode
+  } 
   }
 
   // 2. OTP Required
   if (otp === undefined || otp === null) {
     errors.push(VALIDATION_MESSAGES.OTP_REQUIRED);
-    return errors;
+    errorCode.push("OTP_REQUIRED");
+    return {
+    errors,
+    errorCode
+  } 
   }
 
   // Convert to string for uniform validation (handles number inputs like 43534523)
@@ -199,28 +230,36 @@ const validateVerifyEmail = async (data) => {
   // 3. Empty Strings Check
   if (emailStr.trim().length === 0) {
     errors.push(`${VALIDATION_MESSAGES.EMAIL_REQUIRED}. ${VALIDATION_MESSAGES.EMPTY_STRING_NOT_ALLOWED}`);
+     errorCode.push("EMPTY_STRING_EMAIL");
   }
 
   if (otpStr.trim().length === 0) {
     errors.push(`${VALIDATION_MESSAGES.OTP_REQUIRED}. ${VALIDATION_MESSAGES.EMPTY_STRING_NOT_ALLOWED}`);
+    errorCode.push("EMPTY_STRING_OTP")
   }
 
   // 4. Invalid Email Format
   if (emailStr.trim().length > 0 && !isValidEmailFormat(emailStr.trim())) {
     errors.push(VALIDATION_MESSAGES.INVALID_EMAIL);
+    errorCode.push("INVALID_EMAIL")
   }
 
   // 5. OTP must contain only numbers
   if (otpStr.trim().length > 0 && !isNumericOnly(otpStr.trim())) {
     errors.push(VALIDATION_MESSAGES.OTP_NUMBERS_ONLY);
+    errorCode.push("OTP_MUST_CONTAIN_NUMBER")
   }
 
   // 6. OTP must be exactly 6 digits
   if (otpStr.trim().length > 0 && isNumericOnly(otpStr.trim()) && !isExactLength(otpStr.trim(), 6)) {
     errors.push(VALIDATION_MESSAGES.OTP_EXACTLY_6_DIGITS);
+    errorCode.push("EXACTLY_SIX_DIGIT_OTP")
   }
 
-  return errors;
+  return {
+    errors,
+    errorCode
+  } 
 };
 
 /* ─────────────────────────────────────────────────────────────
