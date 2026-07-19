@@ -29,7 +29,7 @@
 // };
 const { Resend } = require('resend');
 const env = require('../config/env');
-const ErrorHandler = require('../utils/errorHandler');
+const ErrorHandler = require('../utils/errorhandler');
 const { HTTP_STATUS, ERROR_MESSAGES } = require('../utils/constants');
 
 const resend = new Resend(env.RESEND_API);

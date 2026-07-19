@@ -1,6 +1,6 @@
 const cloudinary = require('cloudinary').v2;
 const env = require('../config/env');
-const ErrorHandler = require('../utils/errorHandler');
+const ErrorHandler = require('../utils/errorhandler');
 const { HTTP_STATUS, ERROR_MESSAGES } = require('../utils/constants');
 const streamifier = require("streamifier");
 

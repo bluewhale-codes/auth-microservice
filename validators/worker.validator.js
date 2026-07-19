@@ -1,5 +1,5 @@
 const { REGEX, ERROR_MESSAGES, HTTP_STATUS } = require('../utils/constants');
-const ErrorHandler = require('../utils/errorHandler');
+const ErrorHandler = require('../utils/errorhandler');
 
 const validateSendOTP = (data) => {
   const errors = [];

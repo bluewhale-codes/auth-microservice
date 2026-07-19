@@ -1,5 +1,5 @@
 const { HTTP_STATUS } = require('../utils/constants');
-const ErrorHandler = require('../utils/errorHandler');
+const ErrorHandler = require('../utils/errorhandler');
 
 const validateRefreshToken = (data) => {
   const errors = [];
@@ -25,7 +25,7 @@ const validateRefreshToken = (data) => {
 };
 
 // Middleware wrapper
-const validateRefreshToken = (validatorFn) => {
+const validate = (validatorFn) => {
   return (req, res, next) => {
     const result = validatorFn(req.body);
     if (!result.isValid) {
@@ -36,4 +36,4 @@ const validateRefreshToken = (validatorFn) => {
   };
 };
 
-module.exports = { validateRefreshToken, validateRefreshToken };
+module.exports = { validateRefreshToken, validate };

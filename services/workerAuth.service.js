@@ -9,7 +9,7 @@ const worker = require('../repositories/workerMaster.repository');
 const {transaction} = require("../config/db")
 const { generateAccessToken } = require('../utils/jwt'); // need
 const { hashOTP , compareOTP, hashPassword } = require('../utils/password'); // need
-const ErrorHandler = require('../utils/ErrorHandler'); // need
+const ErrorHandler = require('../utils/errorhandler'); // need
 const { HTTP_STATUS, VALIDATION_MESSAGES, ERROR_MESSAGES , SUCCESS_MESSAGES } = require('../utils/constants');
 const emailService = require('./email.service');
 

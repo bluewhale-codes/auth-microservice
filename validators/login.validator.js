@@ -1,5 +1,5 @@
 const { REGEX, HTTP_STATUS } = require('../utils/constants');
-const ErrorHandler = require('../utils/errorHandler');
+const ErrorHandler = require('../utils/errorhandler');
 
 const validateLogin = (data) => {
   const errors = [];
