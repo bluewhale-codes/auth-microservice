@@ -207,20 +207,14 @@ const validateVerifyEmail = async (data) => {
     errors.push(VALIDATION_MESSAGES.EMAIL_REQUIRED);
     errorCode.push("EMAIL_REQUIRED");
 
-    return {
-    errors,
-    errorCode
-  } 
+   
   }
 
   // 2. OTP Required
   if (otp === undefined || otp === null) {
     errors.push(VALIDATION_MESSAGES.OTP_REQUIRED);
     errorCode.push("OTP_REQUIRED");
-    return {
-    errors,
-    errorCode
-  } 
+  
   }
 
   // Convert to string for uniform validation (handles number inputs like 43534523)

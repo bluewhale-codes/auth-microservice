@@ -273,7 +273,7 @@ const verifyEmail = async (email, otp) => {
 
    
     if (!user) {
-      throw new ErrorHandler(ERROR_MESSAGES.USER_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
+      throw new ErrorHandler(ERROR_MESSAGES.USER_NOT_FOUND, HTTP_STATUS.NOT_FOUND,"USER_NOT_FOUND");
     }
 
     // // 2. Validate role
@@ -283,24 +283,24 @@ const verifyEmail = async (email, otp) => {
 
     // 3. Check already verified
     if (user.is_email_verified) {
-      throw new ErrorHandler(ERROR_MESSAGES.EMAIL_ALREADY_VERIFIED, HTTP_STATUS.BAD_REQUEST);
+      throw new ErrorHandler(ERROR_MESSAGES.EMAIL_ALREADY_VERIFIED, HTTP_STATUS.BAD_REQUEST,"ALREADY_VERIFY");
     }
 
     // 4. Get latest OTP
     const latestOTP = await otpRepository.findLatestOTPByUserId(user.id, client);
     if (!latestOTP) {
-      throw new ErrorHandler(ERROR_MESSAGES.OTP_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
+      throw new ErrorHandler(ERROR_MESSAGES.OTP_NOT_FOUND, HTTP_STATUS.NOT_FOUND,"OTP_NOT_FOUND");
     }
 
 
     // 5. Check used
     if (latestOTP.is_used) {
-      throw new ErrorHandler(ERROR_MESSAGES.OTP_ALREADY_USED, HTTP_STATUS.BAD_REQUEST);
+      throw new ErrorHandler(ERROR_MESSAGES.OTP_ALREADY_USED, HTTP_STATUS.BAD_REQUEST,"OTP_ALREADY_USE");
     }
 
     // 6. Check expired
     if (new Date() > new Date(latestOTP.expires_at)) {
-      throw new ErrorHandler(ERROR_MESSAGES.OTP_EXPIRED, HTTP_STATUS.BAD_REQUEST);
+      throw new ErrorHandler(ERROR_MESSAGES.OTP_EXPIRED, HTTP_STATUS.BAD_REQUEST,"OTP_EXPIRED");
     }
 
     // 7. Compare OTP with bcrypt
@@ -308,7 +308,7 @@ const verifyEmail = async (email, otp) => {
 
     
     if (!isValidOTP) {
-      throw new ErrorHandler(ERROR_MESSAGES.OTP_INVALID, HTTP_STATUS.BAD_REQUEST);
+      throw new ErrorHandler(ERROR_MESSAGES.OTP_INVALID, HTTP_STATUS.BAD_REQUEST,"INVALID_OTP");
     }
 
     // 8. Mark OTP used
@@ -572,9 +572,14 @@ const sendWorkerOTP = async (workerId) => {
       success: true,
       message: SUCCESS_MESSAGES.OTP_SENT,
       data: {
+        master_worker_id:result.worker.id,
         worker_id: result.worker.worker_id,
-        email_masked:result.worker.email,
-        cooldown_seconds: env.OTP_RESEND_COOLDOWN_SECONDS
+        full_name:result.worker.full_name,
+        department:result.worker.department,
+        designation:result.worker.designation,
+        status:result.worker.is_active,
+        // email_masked:result.worker.email,
+        // cooldown_seconds: env.OTP_RESEND_COOLDOWN_SECONDS
       }
     };
   });

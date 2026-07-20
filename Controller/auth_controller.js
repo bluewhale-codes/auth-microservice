@@ -49,6 +49,7 @@ exports.verifyEmail = catchAsyncError(async (req, res, next) => {
     return res.status(HTTP_STATUS.BAD_REQUEST).json({
       success: false,
       message: validationErrors[0],
+       errorCode: validationErrors.errorCode[0],
     });
   }
 
