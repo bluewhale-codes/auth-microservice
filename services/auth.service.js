@@ -650,11 +650,12 @@ const verifyWorkerOTP = async (workerId, otp) => {
         verification_token: verificationToken,
         expires_in: "15 Minutes",
         worker: {
-          worker_id: worker.worker_id,
-          full_name: worker.full_name,
-          department: worker.department,
-          designation: worker.designation,
-          zone: worker.zone
+           master_worker_id:worker.id,
+        worker_id:worker.worker_id,
+        full_name:worker.full_name,
+        department:worker.department,
+        designation:worker.designation,
+        status:worker.is_active,
         }
       }
     };
