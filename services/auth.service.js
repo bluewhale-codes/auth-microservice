@@ -418,9 +418,9 @@ const isProfileCompleted = async (userId, role) => {
 // Get next step based on role
 const getNextStep = (role) => {
   const steps = {
-    student: 'complete_student_registration',
-    faculty: 'complete_faculty_registration',
-    worker: 'complete_worker_registration'
+    student: 'COMPLETE_STUDENT_REGISTRATION',
+    faculty: 'COMPLETE_FACULTY_REGISTRATION',
+    worker: 'COMPLETE_WORKER_REGISTRATION'
   };
   return steps[role] || 'complete_registration';
 };
@@ -444,10 +444,73 @@ const login = async (email, password) => {
 
   // STEP 5: Check email is verified
   if (!user.is_email_verified) {
-    throw new ErrorHandler(
-      'Please verify your email before logging in',
-      HTTP_STATUS.FORBIDDEN
+    return await transaction(async (client) => {
+    // 1. Find user by email
+    const user = await userRepository.findUserByEmail(email, client);
+    if (!user) {
+      throw new ErrorHandler(ERROR_MESSAGES.USER_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
+    }
+
+    
+
+    // 3. Check if email is already verified
+    if (user.is_email_verified) {
+      throw new ErrorHandler(ERROR_MESSAGES.EMAIL_ALREADY_VERIFIED, HTTP_STATUS.BAD_REQUEST);
+    }
+
+    // 4. Check 30-second cooldown
+    const cooldownCheck = await checkResendCooldown(user.id, client);
+    console.log("Time Remaining" + cooldownCheck.remainingSeconds);
+    if (!cooldownCheck.canResend) {
+      const errorMessage = `Please wait ${cooldownCheck.remainingSeconds} seconds before requesting a new OTP`;
+      throw new ErrorHandler(
+        errorMessage,
+        HTTP_STATUS.TOO_MANY_REQUESTS
+      );
+    }
+    console.log("Time Remaining" + typeof(cooldownCheck.remainingSeconds));
+
+    // 5. Check hourly resend limit (max 5 per hour)
+    const hourlyLimitReached = await checkHourlyResendLimit(user.id, client);
+    if (hourlyLimitReached) {
+      throw new ErrorHandler(ERROR_MESSAGES.OTP_MAX_RESENDS, HTTP_STATUS.TOO_MANY_REQUESTS);
+    }
+
+    // 6. Generate new OTP
+    const otp = generateSecureOTP();
+    const otpHash = await hashOTP(otp);
+    const expiresAt = getOTPExpiry();
+
+    // 7. Store new OTP in database
+    await otpRepository.createOTP(
+      { userId: user.id, otpHash, expiresAt },
+      client
     );
+
+    // Return OTP for email sending (outside transaction)
+    return { user, otp };
+  }).then(async (result) => {
+    // Send email after successful transaction
+    try {
+      await emailService.sendVerificationEmail(email, result.user.name, result.otp);
+    } catch (emailError) {
+      console.error('Failed to send resend OTP email:', emailError.message);
+      throw new ErrorHandler(ERROR_MESSAGES.EMAIL_SEND_FAILED, HTTP_STATUS.SERVICE_UNAVAILABLE);
+    }
+
+    
+
+    return {
+      success: true,
+      profile_completed: false,
+      message:"Email not verify. An OTP is send to you email",
+      registration_token: "NOT REQUIRED",
+      role: user.role,
+      next_step: "OTP_VERIFICATION"
+    };
+  });
+    
+   
   }
 
   // STEP 6: Check profile completion
