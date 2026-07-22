@@ -27,12 +27,14 @@ app.use(cors({
 
 //user Routes
 const userRoute = require("./Routes/authRoutes");
+const issueRoute = require("./Routes/issue.routes");
 
 //Mock mate Routes
 // const mockmateRoutes = require("./Routes/mockMateRoutes");
 
 // app.use("/api",userRoute);
 app.use("/api",userRoute);
+app.use("/api",issueRoute);
 
 
 

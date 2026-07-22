@@ -5,9 +5,9 @@ const { HTTP_STATUS, ERROR_MESSAGES } = require('../utils/constants');
 const streamifier = require("streamifier");
 
 cloudinary.config({
-  cloud_name:"dycjjaxsk",
-  api_key:"325247431186386",
-  api_secret:"WEMuN15iF5KQYEeUXyJX0ES-KUA",
+  cloud_name:env.CLOUDINARY_CLOUD_NAME,
+  api_key:env.CLOUDINARY_API_KEY,
+  api_secret:env.CLOUDINARY_API_SECRET,
   secure: true
 });
 

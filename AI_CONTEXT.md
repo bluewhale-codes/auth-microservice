@@ -1,168 +1,163 @@
 # Project Architecture Guide
 
 ## 1. What this project is
-This is a Node.js + Express authentication service with PostgreSQL. Its main purpose is to handle user registration and login, issue JWT tokens, and expose authentication routes.
+This repository is a Node.js + Express backend for authentication, user management, and profile-related workflows. It is structured as a modular monolithic API rather than a microservice system.
 
-## 2. High-level architecture
-The project follows a layered structure:
+## 2. Tech stack
+- Runtime: Node.js
+- Framework: Express
+- Database: PostgreSQL
+- Database client: pg
+- Authentication: JWT + bcrypt/bcryptjs
+- Email/OTP: Resend
+- File uploads: Multer, Cloudinary, Streamifier
+- Other utilities: dotenv, cors, helmet, cookie-parser, express-rate-limit
+
+## 3. Database used
+This project uses PostgreSQL as its primary database.
+
+Important details:
+- The connection is managed in config/db.js using a pg Pool.
+- The database URL is loaded from process.env.DATABASE_URL.
+- Connection pooling is enabled and SSL is configured for the connection.
+- The query layer is split into repository modules, which keeps DB access isolated from controllers and services.
+
+## 4. High-level architecture
+The project follows a layered architecture:
 
 1. Routes layer
    - Receives HTTP requests
-   - Maps endpoints to controllers
+   - Maps endpoints to controller functions
 
 2. Controller layer
-   - Validates input
-   - Calls service logic
-   - Formats responses
+   - Handles request/response flow
+   - Calls services and prepares API responses
 
 3. Service layer
-   - Contains business rules
-   - Coordinates repository calls
+   - Contains business logic
+   - Coordinates validation, auth, OTP, profile, and repository operations
 
 4. Repository layer
-   - Performs database queries only
+   - Performs database operations using SQL queries
+   - Keeps database logic out of controllers
 
-5. Database layer
-   - PostgreSQL via the pg package
+5. Middleware and utilities
+   - Handles auth, validation, error handling, uploads, rate limiting, and shared helpers
 
-## 3. Main entry points
+6. Infrastructure/config layer
+   - Manages environment variables, database connection, and app startup
+
+## 5. Main entry points
 - server.js
-  - Starts the app and connects to the database
+  - Starts the server and connects to the database before listening
 - index.js
-  - Creates and configures the Express app
-  - Registers routes and global middleware
+  - Creates the Express app, registers middleware, mounts routes, and attaches global error handling
 - package.json
-  - Defines scripts and dependencies
+  - Defines dependencies and startup scripts
 
-## 4. Folder-by-folder explanation
+## 6. Folder-by-folder explanation
 
 ### Root files
 - server.js
-  - Starts the server and calls connectToDB()
+  - Starts the application and calls connectToDB()
 - index.js
-  - App configuration, middleware, route mounting, and global error middleware
+  - Configures the Express app and mounts API routes
 - package.json
-  - Project metadata, scripts, and installed packages
+  - Lists project dependencies and scripts
 
 ### config/
 - db.js
-  - Creates and exports the PostgreSQL pool
-  - Provides connectToDB() for startup connection testing
+  - Creates and exports the PostgreSQL connection pool
+  - Exposes connectToDB(), query(), and transaction()
 - env.js
-  - Centralizes environment variables and validation
-  - Defines allowed roles and default role
+  - Centralizes environment configuration and shared constants
 
 ### Routes/
 - authRoutes.js
-  - Defines authentication endpoints:
-    - POST /api/createUser
-    - POST /api/login
+  - Defines authentication and user-related endpoints
 
 ### Controller/
 - auth_controller.js
-  - Contains controller functions for registration and login
-  - Handles request validation, service calls, and response formatting
-  - Note: some older inline DB logic still exists alongside the newer service-based logic
+  - Handles incoming auth requests and passes them to services
 
 ### services/
 - auth.service.js
-  - Main business logic for authentication
-  - Uses repository functions instead of querying the database directly
+  - Core authentication business logic
+- workerAuth.service.js
+  - Worker-specific auth logic
+- email.service.js
+  - Email/OTP-related operations
+- cloudinary.service.js
+  - File upload integration to Cloudinary
 
 ### repositories/
 - user.repository.js
-  - Database access layer for user-related operations
-  - Contains functions such as:
-    - findUserByEmail
-    - createUser
-    - findUserById
+  - User-related database access
+- student.repository.js
+  - Student-related DB access
+- workerMaster.repository.js
+  - Worker-related DB access
+- studentProfile.repository.js / workerProfile.repository.js / facultyProfile.repository.js
+  - Profile-specific repository logic
+- otp.repository.js / workerOtp.repository.js
+  - OTP storage and verification access
 
 ### validators/
 - auth.validator.js
-  - Validates registration and login payloads
-  - Includes sanitization helpers
+  - Validation for auth payloads
+- student.validator.js, worker.validator.js, faculty.validator.js, login.validator.js, refreshToken.validator.js
+  - Domain-specific request validation
 
 ### middleware/
 - auth.js
-  - Authentication middleware (currently incomplete/legacy)
+  - Authentication middleware
 - catchAsyncError.js
-  - Wrapper to catch async errors and pass them to next()
+  - Wraps async code and forwards errors safely
 - errors.js
-  - Global error handling middleware
-- multer.js, uploadImage.js, uploadToCloudinary.js, etc.
-  - These are present but not part of the current auth flow; they appear to support file/image uploads
+  - Global error-handling middleware
+- multer.js, uploadImage.js, uploadToCloudinary.js, uploadScript.js
+  - File upload and processing middleware
+- rateLimiter.js
+  - Request throttling middleware
 
 ### utils/
 - constants.js
-  - Shared constants like HTTP status codes, validation messages, regex patterns
+  - Shared HTTP status codes, error messages, and reusable values
 - errorhandler.js
-  - Custom ErrorHandler class for consistent errors
+  - Custom error class for consistent API errors
 - jwt.js
   - JWT generation and verification helpers
 - password.js
-  - Password hashing and comparison helpers
+  - Password hashing and comparison
+- otp.js
+  - OTP helpers
 
-## 5. Request flow for registration
-Flow for user registration:
-1. Client sends POST request to /api/createUser
-2. authRoutes.js forwards the request to registerUser controller
-3. Controller validates input
-4. Controller calls authService.registerUser()
-5. Service checks if email already exists
-6. Service hashes password
-7. Repository inserts user into PostgreSQL
-8. Service generates JWT token
-9. Controller returns success JSON with user and token
+## 7. Request flow example
+A typical request follows this path:
 
-## 6. Request flow for login
-Flow for login:
-1. Client sends POST request to /api/login
-2. authRoutes.js forwards to loginUser controller
-3. Controller validates input
-4. Controller calls authService.loginUser()
-5. Service looks up user by email in the repository
-6. Service compares password using bcrypt
-7. Service generates JWT token
-8. Controller returns success JSON with user and token
-
-## 7. Database design assumptions
-The current code expects a PostgreSQL table named users.
-
-Likely columns used by the code:
-- id
-- name
-- email
-- password_hash
-- role
-- created_at
-- updated_at
-- is_active
-
-The repository layer uses parameterized SQL queries, which is the correct and safe pattern.
-
-## 8. Important implementation notes for AI
-- The intended architecture is:
-  Controller -> Service -> Repository -> Database
-- There is some legacy or duplicate code in auth_controller.js that directly uses pool.query()
-- The newer service/repository pattern is the cleaner and preferred structure
-- Authentication uses JWT and cookies
-- Error handling is centralized through middleware and the ErrorHandler class
-- Validation logic is separated into validators/auth.validator.js
-
-## 9. Suggested mental model for AI
-When working on this project, think of it as:
-- authRoutes.js = API entry points
-- auth_controller.js = HTTP layer
-- auth.service.js = business rules layer
-- user.repository.js = DB layer
-- config/db.js and config/env.js = infrastructure layer
-
-## 10. Example of the current data flow
 Request -> Route -> Controller -> Service -> Repository -> PostgreSQL -> Response
 
-## 11. Practical guidance
-If you are modifying authentication behavior:
-- Prefer changing auth.service.js for business logic
-- Prefer changing user.repository.js for database access
-- Prefer changing auth.validator.js for validation rules
-- Avoid putting raw SQL directly in controllers when possible
+Example for authentication:
+1. Client sends a request to an auth endpoint
+2. Route forwards it to the controller
+3. Controller validates input and calls the service
+4. Service applies business rules and calls repository functions
+5. Repository executes PostgreSQL queries
+6. The service returns a response, which the controller sends back to the client
+
+## 8. Current functional areas
+- User registration and login
+- JWT-based authentication and refresh-token flow
+- OTP verification
+- Student, worker, and faculty profile handling
+- Cloudinary-based identity image uploads
+- Role-based access patterns
+
+## 9. AI guidance for this codebase
+When working in this repository:
+- Prefer updating the service layer for business logic
+- Prefer updating repository modules for database queries
+- Prefer updating validator files for input validation rules
+- Keep error handling consistent with the existing middleware and ErrorHandler pattern
+- Avoid placing raw SQL directly inside controllers when possible
+- Follow the existing layered structure rather than introducing ad-hoc logic
