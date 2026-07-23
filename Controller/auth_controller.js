@@ -142,7 +142,7 @@ exports.getMyProfile = catchAsyncError(async (req, res, next) => {
 
   const result = await authService.getUserProfile(userId);
 
-  res.status(HTTP_STATUS.CREATED).json(result);
+  res.status(HTTP_STATUS.OK).json(result);
 });
 
 // Register Faculty
