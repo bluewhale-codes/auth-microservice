@@ -12,6 +12,19 @@ const createWorkerProfile = async (profileData, client = null) => {
     : await query(sql, [userId, workerMasterId, workerId, zone, idCardImageUrl, verificationStatus]);
   return result.rows[0];
 };
+const findProfileByUserId = async (userId, client = null) => {
+  const sql = `
+    SELECT user_id, worker_master_id, worker_id, zone, id_card_image_url, verification_status, created_at, updated_at
+    FROM worker_profiles WHERE user_id = $1 LIMIT 1
+  `;
+  const result = client ? await client.query(sql, [userId]) : await query(sql, [userId]);
+  return result.rows[0] || null;
+};
+const checkProfileExists = async (userId, client = null) => {
+  const sql = 'SELECT EXISTS(SELECT 1 FROM worker_profiles WHERE user_id = $1) as exists';
+  const result = client ? await client.query(sql, [userId]) : await query(sql, [userId]);
+  return result.rows[0].exists;
+};
 
 const checkWorkerAlreadyRegistered = async (workerId, client = null) => {
   const sql = 'SELECT EXISTS(SELECT 1 FROM worker_profiles WHERE worker_id = $1) as exists';
@@ -19,4 +32,4 @@ const checkWorkerAlreadyRegistered = async (workerId, client = null) => {
   return result.rows[0].exists;
 };
 
-module.exports = { createWorkerProfile, checkWorkerAlreadyRegistered };
+module.exports = { createWorkerProfile, checkWorkerAlreadyRegistered , checkProfileExists,findProfileByUserId};

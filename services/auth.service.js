@@ -9,8 +9,8 @@ const userRepository = require('../repositories/user.repository');
 const otpRepository = require('../repositories/otp.repository');
 const otpRepositoryworker = require('../repositories/workerOtp.repository');
 const workerMasterRepository = require('../repositories/workerMaster.repository');
-const workerProfileRepository = require('../repositories/workerProfile.repository');
 const studentProfileRepository = require('../repositories/studentProfile.repository');
+const workerProfileRespoiory = require("../repositories/workerProfile.repository");
 const facultyProfileRepository = require('../repositories/facultyProfile.repository');
 const worker = require('../repositories/workerMaster.repository');
 const {transaction} = require("../config/db")
@@ -409,7 +409,7 @@ const isProfileCompleted = async (userId, role) => {
     return await facultyProfileRepository.checkProfileExists(userId);
   }
   if (role === 'worker') {
-    // Worker profile check - can be added later
+    return await workerProfileRespoiory.checkProfileExists(userId);
     return false;
   }
   return false;
@@ -824,7 +824,77 @@ const completeWorkerRegistration = async (workerId, password, verificationToken,
     };
   });
 };
+const getUserProfile = async (userId) => {
+  return await transaction(async (client) => {
+    // STEP 1: Find user by ID (from JWT token)
+    const user = await userRepository.findUserById(userId, client);
+    if (!user) {
+      throw new ErrorHandler(ERROR_MESSAGES.USER_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
+    }
 
+    // STEP 2: Check email is verified
+    if (!user.is_email_verified) {
+      throw new ErrorHandler(
+        'Please verify your email before accessing your profile',
+        HTTP_STATUS.BAD_REQUEST
+      );
+    }
+
+    // STEP 3: Build clean user object (no sensitive fields)
+    const userData = {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      is_email_verified: user.is_email_verified,
+      created_at: user.created_at,
+      updated_at: user.updated_at,
+    };
+
+    // STEP 4: Fetch role-specific profile
+    let result = {
+      user: userData,
+    };
+
+    switch (user.role) {
+      case 'student': {
+        const studentProfile = await studentProfileRepository.findProfileByUserId(userId, client);
+        result.studentProfile = studentProfile || null;
+        break;
+      }
+
+      case 'faculty': {
+        const facultyProfile = await facultyProfileRepository.findProfileByUserId(userId, client);
+        result.facultyProfile = facultyProfile || null;
+        break;
+      }
+
+      case 'worker': {
+        const workerProfile = await workerProfileRespoiory.findProfileByUserId(userId, client);
+        result.workerProfile = workerProfile || null;
+        break;
+      }
+
+      case 'admin':
+        // Admins don't have a separate profile table
+        result.adminProfile = null;
+        break;
+
+      default:
+        throw new ErrorHandler(
+          'Unknown user role',
+          HTTP_STATUS.INTERNAL_SERVER_ERROR
+        );
+    }
+
+    // STEP 5: Return success response
+    return {
+      success: true,
+      message: 'User profile fetched successfully',
+      data: result,
+    };
+  });
+};
 
 
 // Student Registration
@@ -1036,7 +1106,8 @@ module.exports = {
    completeStudentRegistration,
    completeFacultyRegistration,
    login,
-   refreshAccessToken
+   refreshAccessToken,
+   getUserProfile
 };
 
 
