@@ -134,6 +134,16 @@ exports.completeStudentRegistration = catchAsyncError(async (req, res, next) => 
 
   res.status(HTTP_STATUS.CREATED).json(result);
 });
+exports.getMyProfile = catchAsyncError(async (req, res, next) => {
+  
+  
+  // user_id from JWT token (set by authenticate middleware)
+  const userId = req.user.id;
+
+  const result = await authService.completeStudentRegistration(userId, roll_no, phone_no);
+
+  res.status(HTTP_STATUS.CREATED).json(result);
+});
 
 // Register Faculty
 exports.completeFacultyRegistration = catchAsyncError(async (req, res, next) => {
