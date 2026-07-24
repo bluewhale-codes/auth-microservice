@@ -2,7 +2,7 @@ const express = require("express");
 // const {isAuthenticatedUser} = require("../middleware/auth")
 
 const upload = require("../middleware/multer");
-const {registerUser,loginUser, verifyEmail,resendOTP,sendWorkerOTP , verifyWorkerOTP ,refreshToken,completeFacultyRegistration ,completeWorkerRegistration,completeStudentRegistration, getMyProfile} = require("../Controller/auth_controller");
+const {registerUser,loginUser, verifyEmail,resendOTP,sendWorkerOTP , verifyWorkerOTP ,refreshToken,completeFacultyRegistration ,completeWorkerRegistration,completeStudentRegistration, getMyProfile, getMyReports, getReports} = require("../Controller/auth_controller");
 const router = express.Router();
 const { validateSendOTP, validateVerifyOTP, validateRegister  , validate} = require('../validators/worker.validator');
 const {validateCompleteRegistration, validateStudent,} = require('../validators/student.validator');
@@ -72,6 +72,11 @@ router.get(
     '/getUserProfile',
     authenticate,
     getMyProfile
+)
+router.get(
+    '/getMyReports',
+    authenticate,
+    getReports
 )
 
 module.exports = router;

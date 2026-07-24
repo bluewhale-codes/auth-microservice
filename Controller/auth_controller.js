@@ -13,6 +13,7 @@ const { HTTP_STATUS } = require('../utils/constants');
 const { generateOTP } = require('../utils/otp');
 const {sendOTPEmail} = require("../services/email.service");
 const errors = require("../middleware/errors");
+const reportService = require("../services/report.service");
 
 
 
@@ -144,7 +145,22 @@ exports.getMyProfile = catchAsyncError(async (req, res, next) => {
 
   res.status(HTTP_STATUS.OK).json(result);
 });
+exports.getReports = catchAsyncError(async (req, res) => {
 
+  const userId = req.user.id;
+  const queryParams = {
+      status: req.query.status,
+      issue_type: req.query.issue_type,
+      page: req.query.page,
+      limit: req.query.limit,
+    };
+
+  const result = await authService.getUserReports(userId,queryParams);
+
+  res.status(HTTP_STATUS.OK).json(result);
+
+
+})
 // Register Faculty
 exports.completeFacultyRegistration = catchAsyncError(async (req, res, next) => {
   // Validation handled by middleware

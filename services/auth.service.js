@@ -21,7 +21,8 @@ const { HTTP_STATUS, VALIDATION_MESSAGES, ERROR_MESSAGES , SUCCESS_MESSAGES , WO
 const emailService = require('./email.service');
 const cloudinaryService = require('./cloudinary.service');
 const { comparePassword } = require('../utils/password');
-
+const reportRepository = require("../repositories/report.repository");
+const reportService = require("../services/report.service");
 
 /**
  * Register a new user
@@ -895,6 +896,109 @@ const getUserProfile = async (userId) => {
     };
   });
 };
+const getUserReports = async (userId , queryParams) => {
+  return await transaction(async (client) => {
+     
+    
+    console.log("Inside getUserResports");
+
+    // STEP 1: Find user by ID (from JWT token)
+    const user = await userRepository.findUserById(userId, client);
+    console.log(user, "user");
+    if (!user) {
+      throw new ErrorHandler(ERROR_MESSAGES.USER_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
+    }
+
+    // STEP 2: Check email is verified
+    if (!user.is_email_verified) {
+      throw new ErrorHandler(
+        'Please verify your email before accessing your Reports',
+        HTTP_STATUS.BAD_REQUEST
+      );
+    }
+
+    // STEP 1: Validate Role
+    if (!reportService.isValidRole(user.role)) {
+        throw new ErrorHandler(
+          'Role not allowed',
+          403
+        );
+    }
+
+    // STEP 2: Validate and parse pagination
+    const { page, limit, offset } = reportService.validatePagination(
+      queryParams.page,
+      queryParams.limit
+    );
+
+
+    // STEP 3: Validate and sanitize filters
+  const filters = {
+    status: reportService.validateStatus(queryParams.status),
+    issue_type: reportService.validateIssueType(queryParams.issue_type),
+    limit,
+    offset,
+  };
+
+  let reports = [];
+  let totalRecords = 0;
+
+
+    switch (user.role) {
+      case 'student': {
+        // Students & Faculty: see only reports they created
+            [reports, totalRecords] = await Promise.all([
+              reportRepository.getReportsForStudentOrFaculty(userId, filters),
+              reportRepository.countReportsForStudentOrFaculty(userId, filters),
+            ]);
+        break;
+      }
+
+      case 'faculty': {
+         // Students & Faculty: see only reports they created
+            [reports, totalRecords] = await Promise.all([
+              reportRepository.getReportsForStudentOrFaculty(userId, filters),
+              reportRepository.countReportsForStudentOrFaculty(userId, filters),
+            ]);
+        break;
+      }
+
+      case 'worker': {
+        // Workers: see only tasks assigned to them
+            [reports, totalRecords] = await Promise.all([
+              reportRepository.getReportsForWorker(userId, filters),
+              reportRepository.countReportsForWorker(userId, filters),
+            ]);
+      }
+
+    
+
+      
+
+      default:
+        throw new ErrorHandler(
+          'Unknown user role',
+          HTTP_STATUS.INTERNAL_SERVER_ERROR
+        );
+    }
+
+    const totalPages = Math.ceil(totalRecords / limit);
+
+    // STEP 5: Return success response
+    return {
+      success: true,
+      message: 'User Reports fetched successfully',
+      data: reports,
+      pagination: {
+        page,
+        limit,
+        totalRecords,
+        totalPages
+        
+      },
+    };
+  });
+};
 
 
 // Student Registration
@@ -1107,7 +1211,8 @@ module.exports = {
    completeFacultyRegistration,
    login,
    refreshAccessToken,
-   getUserProfile
+   getUserProfile,
+   getUserReports
 };
 
 
