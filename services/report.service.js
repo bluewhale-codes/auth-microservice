@@ -7,7 +7,7 @@
  */
 
 const reportRepository = require('../repositories/report.repository');
-const { ErrorHandler } = require('../utils/errorHandler');
+const { ErrorHandler } = require('../utils/errorhandler');
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
